@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日付テキスト生成システム</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .calendar-section {
+            margin-bottom: 30px;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .nav-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .nav-button:hover {
+            background-color: #0056b3;
+        }
+
+        .current-month {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .calendar {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .calendar th, .calendar td {
+            width: 14.28%;
+            height: 50px;
+            text-align: center;
+            vertical-align: middle;
+            border: 1px solid #ddd;
+        }
+
+        .calendar th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .calendar td {
+            background-color: white;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .calendar td:hover {
+            background-color: #e3f2fd;
+        }
+
+        .calendar td.selected {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .calendar td.other-month {
+            color: #ccc;
+            cursor: default;
+        }
+
+        .calendar td.other-month:hover {
+            background-color: white;
+        }
+
+        .output-section {
+            border-top: 2px solid #eee;
+            padding-top: 20px;
+        }
+
+        .output-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .output-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .action-button:hover {
+            background-color: #218838;
+        }
+
+        .clear-button {
+            background-color: #dc3545;
+        }
+
+        .clear-button:hover {
+            background-color: #c82333;
+        }
+
+        .output-area {
+            width: 100%;
+            min-height: 120px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+            font-family: monospace;
+            white-space: pre-wrap;
+            resize: vertical;
+        }
+
+        .day-names {
+            color: #666;
+        }
+
+        .sun { color: #e74c3c; }
+        .sat { color: #3498db; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>日付テキスト生成システム</h1>
+        
+        <div class="calendar-section">
+            <div class="calendar-header">
+                <button class="nav-button" id="prevMonth">← 前月</button>
+                <div class="current-month" id="currentMonth"></div>
+                <button class="nav-button" id="nextMonth">次月 →</button>
+            </div>
+            
+            <table class="calendar" id="calendar">
+                <thead>
+                    <tr class="day-names">
+                        <th class="sun">日</th>
+                        <th>月</th>
+                        <th>火</th>
+                        <th>水</th>
+                        <th>木</th>
+                        <th>金</th>
+                        <th class="sat">土</th>
+                    </tr>
+                </thead>
+                <tbody id="calendarBody">
+                </tbody>
+            </table>
+        </div>
+
+        <div class="output-section">
+            <div class="output-header">
+                <div class="output-title">出力テキスト</div>
+                <div class="button-group">
+                    <button class="action-button" id="copyButton">コピー</button>
+                    <button class="action-button clear-button" id="clearButton">消去</button>
+                </div>
+            </div>
+            <textarea class="output-area" id="outputArea" readonly placeholder="カレンダーから日付を選択してください"></textarea>
+        </div>
+    </div>
+
+    <script>
+        class DateTextGenerator {
+            constructor() {
+                this.currentDate = new Date();
+                this.selectedDates = [];
+                this.dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+                this.init();
+            }
+
+            init() {
+                this.bindEvents();
+                this.renderCalendar();
+            }
+
+            bindEvents() {
+                document.getElementById('prevMonth').addEventListener('click', () => {
+                    this.currentDate.setMonth(this.currentDate.getMonth() - 1);
+                    this.renderCalendar();
+                });
+
+                document.getElementById('nextMonth').addEventListener('click', () => {
+                    this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+                    this.renderCalendar();
+                });
+
+                document.getElementById('copyButton').addEventListener('click', () => {
+                    this.copyOutput();
+                });
+
+                document.getElementById('clearButton').addEventListener('click', () => {
+                    this.clearOutput();
+                });
+            }
+
+            renderCalendar() {
+                const year = this.currentDate.getFullYear();
+                const month = this.currentDate.getMonth();
+                
+                // 月の表示を更新
+                document.getElementById('currentMonth').textContent = 
+                    `${year}年 ${month + 1}月`;
+
+                // カレンダーの日付を生成
+                const firstDay = new Date(year, month, 1);
+                const lastDay = new Date(year, month + 1, 0);
+                const startDate = new Date(firstDay);
+                startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+                const calendarBody = document.getElementById('calendarBody');
+                calendarBody.innerHTML = '';
+
+                for (let week = 0; week < 6; week++) {
+                    const row = document.createElement('tr');
+                    
+                    for (let day = 0; day < 7; day++) {
+                        const cell = document.createElement('td');
+                        const cellDate = new Date(startDate);
+                        cellDate.setDate(startDate.getDate() + (week * 7) + day);
+                        
+                        cell.textContent = cellDate.getDate();
+                        
+                        if (cellDate.getMonth() !== month) {
+                            cell.classList.add('other-month');
+                        } else {
+                            cell.addEventListener('click', () => {
+                                this.toggleDate(cellDate, cell);
+                            });
+                        }
+                        
+                        row.appendChild(cell);
+                    }
+                    
+                    calendarBody.appendChild(row);
+                }
+            }
+
+            toggleDate(date, cell) {
+                const dateStr = this.formatDate(date);
+                const index = this.selectedDates.findIndex(d => d.dateStr === dateStr);
+                
+                if (index === -1) {
+                    // 日付を追加
+                    this.selectedDates.push({ date: new Date(date), dateStr, cell });
+                    cell.classList.add('selected');
+                } else {
+                    // 日付を削除
+                    this.selectedDates.splice(index, 1);
+                    cell.classList.remove('selected');
+                }
+                
+                this.updateOutput();
+            }
+
+            formatDate(date) {
+                const year = date.getFullYear().toString().slice(-2);
+                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                const day = date.getDate().toString().padStart(2, '0');
+                const dayName = this.dayNames[date.getDay()];
+                
+                return `${year}/${month}/${day}(${dayName})`;
+            }
+
+            updateOutput() {
+                // 日付順にソート
+                this.selectedDates.sort((a, b) => a.date - b.date);
+                
+                const output = this.selectedDates.map(item => item.dateStr).join('\n');
+                document.getElementById('outputArea').value = output;
+            }
+
+            copyOutput() {
+                const outputArea = document.getElementById('outputArea');
+                if (outputArea.value.trim() === '') {
+                    alert('コピーするテキストがありません');
+                    return;
+                }
+                
+                outputArea.select();
+                document.execCommand('copy');
+                alert('テキストをコピーしました');
+            }
+
+            clearOutput() {
+                // 選択された日付をクリア
+                this.selectedDates.forEach(item => {
+                    item.cell.classList.remove('selected');
+                });
+                
+                this.selectedDates = [];
+                document.getElementById('outputArea').value = '';
+            }
+        }
+
+        // アプリケーション開始
+        document.addEventListener('DOMContentLoaded', () => {
+            new DateTextGenerator();
+        });
+    </script>
+</body>
+</html>

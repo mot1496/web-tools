@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>日付テキスト生成システム</title>
+<style>
+    body {
+        font-family: sans-serif;
+        margin: 20px;
+    }
+    .container {
+        max-width: 500px;
+        margin: auto;
+    }
+    label {
+        display: block;
+        margin-top: 10px;
+        font-weight: bold;
+    }
+    input[type="date"] {
+        width: 100%;
+        padding: 8px;
+        margin-top: 5px;
+    }
+    .weekday-buttons button {
+        margin: 5px 5px 0 0;
+        padding: 8px 12px;
+        border: 1px solid #666;
+        border-radius: 4px;
+        background: #f0f0f0;
+        cursor: pointer;
+    }
+    .weekday-buttons button.active {
+        background: #4caf50;
+        color: white;
+    }
+    textarea {
+        width: 100%;
+        height: 200px;
+        margin-top: 20px;
+        padding: 10px;
+        resize: vertical;
+    }
+    .copy-btn {
+        margin-top: 10px;
+        width: 100%;
+        padding: 10px;
+        background: #2196f3;
+        color: white;
+        border: none;
+        cursor: pointer;
+        font-size: 16px;
+        border-radius: 4px;
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h2>日付テキスト生成システム</h2>
+
+    <label>開始日</label>
+    <input type="date" id="startDate">
+
+    <label>終了日</label>
+    <input type="date" id="endDate">
+
+    <label>曜日選択（複数選択可）</label>
+    <div class="weekday-buttons">
+        <button data-day="0">日</button>
+        <button data-day="1">月</button>
+        <button data-day="2">火</button>
+        <button data-day="3">水</button>
+        <button data-day="4">木</button>
+        <button data-day="5">金</button>
+        <button data-day="6">土</button>
+    </div>
+
+    <textarea id="result" placeholder="ここに生成結果が表示されます"></textarea>
+    <button class="copy-btn" onclick="copyText()">コピーする</button>
+</div>
+
+<script>
+const weekdayNames = ["日", "月", "火", "水", "木", "金", "土"];
+const selectedWeekdays = new Set();
+
+// 曜日ボタンのイベント設定
+document.querySelectorAll(".weekday-buttons button").forEach(btn => {
+    btn.addEventListener("click", () => {
+        const day = Number(btn.dataset.day);
+        if (selectedWeekdays.has(day)) {
+            selectedWeekdays.delete(day);
+            btn.classList.remove("active");
+        } else {
+            selectedWeekdays.add(day);
+            btn.classList.add("active");
+        }
+        generateText();
+    });
+});
+
+// 日付変更時のイベント
+document.getElementById("startDate").addEventListener("change", generateText);
+document.getElementById("endDate").addEventListener("change", generateText);
+
+// メイン処理：日付テキスト生成
+function generateText() {
+    const start = document.getElementById("startDate").value;
+    const end = document.getElementById("endDate").value;
+
+    if (!start || !end) return;
+
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    let output = "";
+
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        const wd = d.getDay();
+        if (selectedWeekdays.has(wd)) {
+            const yy = String(d.getFullYear()).slice(-2);
+            const mm = ("0" + (d.getMonth() + 1)).slice(-2);
+            const dd = ("0" + d.getDate()).slice(-2);
+            output += `${yy}/${mm}/${dd}(${weekdayNames[wd]})\n`;
+        }
+    }
+
+    document.getElementById("result").value = output;
+}
+
+// コピー機能
+function copyText() {
+    const text = document.getElementById("result");
+    text.select();
+    document.execCommand("copy");
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,10 @@
+body {
+    background-color: black;
+    color: white;
+}
+
+#time {
+    text-align: center;
+    font-weight: bold;
+    font-size: 18vw;
+}
