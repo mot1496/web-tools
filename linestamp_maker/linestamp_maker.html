@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LINEスタンプメーカー</title>
+<link rel="stylesheet" href="linestamp_maker_style.css">
+</head>
+<body>
+  <div class="app">
+
+    <div class="toolbox">
+      <div class="group">
+        <span class="label">ツール</span>
+        <div class="row" id="tools">
+          <button class="tool-btn" data-tool="pen"   >✏️</button>
+          <button class="tool-btn" data-tool="eraser">🩹</button>
+          <button class="tool-btn" data-tool="fill"  >🪣</button>
+        </div>
+        <div class="row actions">
+          <button id="undo">↩︎ 戻る</button>
+          <button id="redo">↪︎ 進む</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="label">太さ</span>
+        <div class="row widths" id="widths"></div>
+      </div>
+
+      <div class="group">
+        <span class="label">色（48色）</span>
+        <div class="palette" id="palette"></div>
+        <div class="current-color">
+          <span class="chip" id="currentChip"></span>
+          <span id="currentColorText"></span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="group">
+        <span class="label">編集</span>
+        <div class="row actions">
+          <button id="clear">全消し</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="label">ファイル</span>
+        <div class="row actions">
+          <button id="save">保存</button>
+          <button id="load">呼び出し</button>
+        </div>
+        <div class="row actions">
+          <button id="open">🖼️ 画像を開く</button>
+          <button id="download">PNG 出力</button>
+        </div>
+        <input type="file" id="fileInput" accept="image/*" hidden>
+        <p class="note">
+          「保存／呼び出し」は描きかけをブラウザ内に記録・復元します。
+          「画像を開く」はパソコンの画像ファイルを読み込みます。
+          「PNG 出力」は透明背景のまま画像ファイルに書き出します。
+        </p>
+      </div>
+    </div><!-- /.toolbox -->
+
+    <div class="canvas-wrap">
+      <canvas width="370" height="320"></canvas>
+    </div>
+  </div>
+
+  <script src="linestamp_maker_script.js" defer></script>
+</body>
+</html>
