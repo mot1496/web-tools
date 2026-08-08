@@ -267,6 +267,9 @@ class PaintApp {
   }
 
   bindPointer() {
+
+    this.canvas.style.touchAction = "none"; // スクロールやズームを無効化する
+
     this.canvas.addEventListener("pointerdown", e => {
       this.drawing = true;
       this.canvas.setPointerCapture(e.pointerId);
