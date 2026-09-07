@@ -19,11 +19,7 @@ background: #fff;
 }
 
 .avatar {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    background: #E6F1FB;
-    margin: 0 auto 12px;
+    margin: 0 auto 8px;
     display: flex;
     align-items: center;
     justify-content: center;
