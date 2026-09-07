@@ -135,6 +135,28 @@ button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
   color:#08281F;background:linear-gradient(180deg,#69E0BB,#3BAE8E);box-shadow:0 5px 0 #26775F;transition:transform .08s,box-shadow .08s}
 .goBtn:active{transform:translateY(4px);box-shadow:0 1px 0 #26775F}
 
+/* --- ひっ算スペース --- */
+.memoWrap{margin-top:14px}
+.memoBar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:7px}
+.memoTtl{font-size:.75rem;font-weight:700;opacity:.6;letter-spacing:.06em;margin-right:auto}
+.memoBtn{padding:7px 11px;border-radius:999px;font-size:.72rem;font-weight:700;line-height:1;
+  background:rgba(255,253,247,.08);border:1.5px solid rgba(255,253,247,.2);color:rgba(246,239,226,.8);
+  transition:transform .06s,background .12s,border-color .12s}
+.memoBtn.on{background:var(--gold);border-color:var(--gold);color:#3A2400}
+.memoBtn:active{transform:translateY(2px)}
+.memoBox{position:relative;height:250px;border-radius:16px;overflow:hidden;touch-action:none;
+  background-color:#FFFDF7;
+  background-image:
+    linear-gradient(rgba(22,32,61,.20) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(22,32,61,.20) 1px,transparent 1px),
+    linear-gradient(rgba(22,32,61,.09) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(22,32,61,.09) 1px,transparent 1px);
+  background-size:96px 96px,96px 96px,24px 24px,24px 24px;
+  box-shadow:0 6px 0 rgba(0,0,0,.22),inset 0 0 0 3px rgba(79,195,161,.22)}
+.memoBox.tall{height:420px}
+.memoBox canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
+.memoHint{position:absolute;left:12px;bottom:8px;font-size:.72rem;color:rgba(22,32,61,.3);pointer-events:none}
+
 .answerPanel{margin-top:16px;padding:18px 16px;border-radius:18px;text-align:center;
   background:rgba(226,84,63,.14);border:2px solid rgba(226,84,63,.5)}
 .apMsg{margin:0 0 10px;font-weight:800;color:#FFB4A6}
@@ -487,6 +509,160 @@ function ansText(p){
 }
 function mmss(s){return Math.floor(s/60)+":"+String(s%60).replace(/^(\d)$/,"0$1");}
 
+/* ---------- ひっ算スペース（手書き） ---------- */
+var MEMO={
+  strokes:[], cur:null, id:null,
+  cv:null, ctx:null, w:0, h:0,
+  open:true, tall:false, tool:"pen", penSeen:false
+};
+var INK="#16203D";
+
+function memoHTML(){
+  var h='<div class="memoWrap"><div class="memoBar">'+
+    '<span class="memoTtl">ひっ算スペース</span>'+
+    '<button class="memoBtn'+(MEMO.tool==="pen"?" on":"")+'" data-act="memo" data-v="pen">ペン</button>'+
+    '<button class="memoBtn'+(MEMO.tool==="eraser"?" on":"")+'" data-act="memo" data-v="eraser">消しゴム</button>'+
+    '<button class="memoBtn" data-act="memo" data-v="undo">もどす</button>'+
+    '<button class="memoBtn" data-act="memo" data-v="clear">まっさら</button>'+
+    '<button class="memoBtn'+(MEMO.tall?" on":"")+'" data-act="memo" data-v="tall">'+(MEMO.tall?"せまく":"ひろく")+'</button>'+
+    '<button class="memoBtn" data-act="memo" data-v="fold">'+(MEMO.open?"たたむ":"ひらく")+'</button>'+
+    '</div>';
+  if(MEMO.open){
+    h+='<div class="memoBox'+(MEMO.tall?" tall":"")+'" id="memoBox">'+
+       '<canvas id="memoCv"></canvas>'+
+       '<span class="memoHint" id="memoHint">ゆびや ペンで ひっ算を 書こう</span></div>';
+  }
+  return h+'</div>';
+}
+
+function renderMemo(){
+  var host=document.getElementById("memo");
+  if(!host)return;
+  host.innerHTML=memoHTML();
+  memoSetup();
+}
+
+function memoSetup(){
+  var box=document.getElementById("memoBox");
+  if(!box){MEMO.cv=null;MEMO.ctx=null;return;}
+  var cv=document.getElementById("memoCv");
+  var r=box.getBoundingClientRect();
+  var dpr=Math.min(window.devicePixelRatio||1,3);
+  cv.width=Math.round(r.width*dpr);
+  cv.height=Math.round(r.height*dpr);
+  var ctx=cv.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.lineCap="round";ctx.lineJoin="round";
+  MEMO.cv=cv;MEMO.ctx=ctx;MEMO.w=r.width;MEMO.h=r.height;
+  memoBind(cv);
+  memoRedraw();
+}
+
+function memoPt(e,cv){
+  var r=cv.getBoundingClientRect();
+  return [e.clientX-r.left, e.clientY-r.top];
+}
+function memoWidth(e){
+  if(MEMO.tool==="eraser")return 26;
+  if(e.pointerType==="pen"&&e.pressure>0)return 1.8+e.pressure*3.2;
+  return 3;
+}
+function memoStyle(s){
+  var ctx=MEMO.ctx;
+  ctx.globalCompositeOperation = s.tool==="eraser" ? "destination-out" : "source-over";
+  ctx.strokeStyle=INK;ctx.fillStyle=INK;ctx.lineWidth=s.w;
+}
+function memoDot(p,s){
+  var ctx=MEMO.ctx;if(!ctx)return;
+  memoStyle(s);
+  ctx.beginPath();ctx.arc(p[0],p[1],s.w/2,0,Math.PI*2);ctx.fill();
+  ctx.globalCompositeOperation="source-over";
+}
+function memoSeg(a,b,s){
+  var ctx=MEMO.ctx;if(!ctx)return;
+  memoStyle(s);
+  ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();
+  ctx.globalCompositeOperation="source-over";
+}
+function memoRedraw(){
+  var ctx=MEMO.ctx;if(!ctx)return;
+  ctx.clearRect(0,0,MEMO.w,MEMO.h);
+  for(var i=0;i<MEMO.strokes.length;i++){
+    var s=MEMO.strokes[i],p=s.pts;
+    if(p.length===1){memoDot(p[0],s);continue;}
+    memoStyle(s);
+    ctx.beginPath();ctx.moveTo(p[0][0],p[0][1]);
+    for(var j=1;j<p.length;j++)ctx.lineTo(p[j][0],p[j][1]);
+    ctx.stroke();
+    ctx.globalCompositeOperation="source-over";
+  }
+  memoHintVis();
+}
+function memoHintVis(){
+  var el=document.getElementById("memoHint");
+  if(el)el.style.display=MEMO.strokes.length?"none":"block";
+}
+
+function memoBind(cv){
+  if(cv.getAttribute("data-bound"))return;
+  cv.setAttribute("data-bound","1");
+
+  cv.addEventListener("pointerdown",function(e){
+    if(e.pointerType==="pen")MEMO.penSeen=true;
+    if(MEMO.penSeen&&e.pointerType==="touch")return;   /* ペンを使い始めたら手のひらは無視 */
+    if(e.pointerType==="mouse"&&e.button!==0)return;
+    e.preventDefault();
+    try{cv.setPointerCapture(e.pointerId);}catch(err){}
+    MEMO.id=e.pointerId;
+    var s={tool:MEMO.tool,w:memoWidth(e),pts:[memoPt(e,cv)]};
+    MEMO.cur=s;MEMO.strokes.push(s);
+    memoDot(s.pts[0],s);
+    memoHintVis();
+  });
+
+  cv.addEventListener("pointermove",function(e){
+    if(!MEMO.cur||e.pointerId!==MEMO.id)return;
+    e.preventDefault();
+    var evs=(e.getCoalescedEvents?e.getCoalescedEvents():null)||[e];
+    for(var i=0;i<evs.length;i++){
+      var p=memoPt(evs[i],cv),pts=MEMO.cur.pts,last=pts[pts.length-1];
+      if(Math.abs(p[0]-last[0])<0.6&&Math.abs(p[1]-last[1])<0.6)continue;
+      pts.push(p);
+      memoSeg(last,p,MEMO.cur);
+    }
+  });
+
+  function endStroke(e){
+    if(!MEMO.cur||e.pointerId!==MEMO.id)return;
+    MEMO.cur=null;MEMO.id=null;
+    try{cv.releasePointerCapture(e.pointerId);}catch(err){}
+  }
+  cv.addEventListener("pointerup",endStroke);
+  cv.addEventListener("pointercancel",endStroke);
+  cv.addEventListener("contextmenu",function(e){e.preventDefault();});
+}
+
+function memoClear(){
+  MEMO.strokes=[];MEMO.cur=null;MEMO.id=null;
+  memoRedraw();
+}
+
+function onMemo(v){
+  if(v==="pen"||v==="eraser"){MEMO.tool=v;sfx("tap");renderMemo();}
+  else if(v==="undo"){MEMO.strokes.pop();sfx("tap");memoRedraw();}
+  else if(v==="clear"){memoClear();sfx("tap");}
+  else if(v==="tall"){MEMO.tall=!MEMO.tall;sfx("tap");renderMemo();}
+  else if(v==="fold"){MEMO.open=!MEMO.open;sfx("tap");renderMemo();}
+}
+
+/* 画面のサイズが変わったら描き直す */
+var memoRT=null;
+window.addEventListener("resize",function(){
+  if(S.screen!=="play"||!MEMO.open)return;
+  if(memoRT)clearTimeout(memoRT);
+  memoRT=setTimeout(function(){memoSetup();},180);
+});
+
 /* ---------- 状態 ---------- */
 var S={
   screen:"home", mode:"frac", level:1, sound:true,
@@ -533,6 +709,7 @@ function renderPlay(){
     '<div class="scoreBox"><span class="scoreNum" id="score">0</span><span class="scoreLbl">てん</span></div>'+
     '<div class="comboSlot" id="comboSlot"></div></div>'+
     '<div class="card"><div class="expr" id="expr"></div><div class="fx" id="fx"></div></div>'+
+    '<div id="memo"></div>'+
     '<div id="below"></div></div>'+
     '<button class="quit" data-act="quit">やめる</button></div>';
   app.innerHTML=h;
@@ -553,6 +730,8 @@ function renderQuestion(){
   document.getElementById("fx").innerHTML="";
   document.getElementById("neko").innerHTML=nekoSVG("idle");
   renderDots();
+  MEMO.strokes=[];MEMO.cur=null;MEMO.id=null;
+  renderMemo();
   renderInput();
 }
 function renderInput(){
@@ -763,6 +942,7 @@ app.addEventListener("click",function(e){
   else if(act==="sound"){S.sound=!S.sound;renderHome();}
   else if(act==="start"){start();}
   else if(act==="key"){onKey(v);}
+  else if(act==="memo"){onMemo(v);}
   else if(act==="slot"){if(S.phase==="input"){S.slot=v;updateInput();}}
   else if(act==="submit"){submit();}
   else if(act==="next"){sfx("tap");next();}
